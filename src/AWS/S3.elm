@@ -1,23 +1,10 @@
-module AWS.S3 exposing(..)
--- (presignedUrl, RequestData, testReq)
+module AWS.S3 exposing(presignedUrl, RequestData, testReq)
 
 import AWS.Config exposing(Region, ServiceConfig)
 import AWS.Service exposing(Service)
 import AWS.Credentials exposing(Credentials)
 import AWS.Internal.V4
 import Time exposing(Month(..))
-
-{-
-
-Outine of the process;
-
-  1. Set up an S3 service, e.g., service = AWS.S3.service (AWS.S3.configure "us-east-1")
-  2. Set up the credentials: credentials = AWS.Credentials.fromAccessKeys accessKey secretKey
-  3. Set up the request: req = for an unsigned request, see AWS.Http.request (L161)
-  4. send service credentials req
-
-We will have to work to implement AWS.Http.presignedRequest
--}
 
 type alias RequestData = {
         region : String
@@ -29,9 +16,25 @@ type alias RequestData = {
       , secretKey : String
    }
 
-
 {-|
-    to verify correctness, run `presignedUrl (testReq <unixTime>)`
+    To verify correctness, run `presignedUrl (testReq <unixTime>)`
+    with an appropriately configured `testReq`.  That is, the
+    region, bucket, accessKey and secretKey must be valid.
+
+    Don't commit the last two to GitHub !!!
+
+    There is something wrong with signture.  If I run
+    presignedUrl (testReq 1369353600), where 1369353600
+    is the Unix Time of May 24, 2013 at 00:00:00 UTC, I get
+
+        e52363bbf1d624e78fb3b1bdc0c2bb40f46a0f2e2e40a78df85c5e9e056afed1
+
+    instead of the official
+
+        aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404
+
+    Below is what I get when I run the code with a valid `testReq`:
+
    <Error>
    <Code>SignatureDoesNotMatch</Code>
    <Message>The request signature we calculated does not match the signature you provided. Check your key and signing method.</Message>
@@ -56,32 +59,25 @@ testReq unixTime = {
     , secretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   }
 
-{-|
-<Error>
-<Code>AuthorizationQueryParametersError</Code>
-<Message>Error parsing the X-Amz-Credential parameter; the Credential is mal-formed; expecting
- "<YOUR-AKID>/YYYYMMDD/REGION/SERVICE/aws4_request".</Message>
-<RequestId>6508EACCDDB3E041</RequestId>
-<HostId>tJM313iircYW8HgHj2aop2wePL1KceMWhrH3ttXuTrFG/XdmcwlqtXxTeswrJR+sJ+rWDP2m32I=</HostId>
-</Error>
--}
+
 presignedUrl : RequestData -> String
 presignedUrl data =
      let
         service_ = service (configure data.region)
         creds = { accessKeyId = data.accessKey, secretAccessKey = data.secretKey, sessionToken = Nothing}
-        prefix = "https://s3.amazonaws.com/" ++ data.bucket ++ "/" ++ data.filepath ++ "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-        elements = [
-                prefix
-              , "X-Amz-Credential=" ++ data.accessKey ++ "%2F" ++ dateString data.time ++ "%2F" ++ data.region ++ "%2F" ++ "s3%2Faws4_request"
+        url = "https://s3.amazonaws.com/" ++ data.bucket ++ "/" ++ data.filepath ++ "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+        headers = [
+               "X-Amz-Credential=" ++ data.accessKey ++ "%2F" ++ dateString data.time ++ "%2F" ++ data.region ++ "%2F" ++ "s3%2Faws4_request"
               , "X-Amz-Date=" ++ timeString data.time
-              , "X-Amz-Expires=" ++ String.fromInt data.expiration -- timeString (incrementPosix data.expiration data.time)
+              , "X-Amz-Expires=" ++ String.fromInt data.expiration
               , "X-Amz-SignedHeaders=host"
               , "X-Amz-Signature=" ++ AWS.Internal.V4.signature creds service_ data.time data.secretKey
-          ]
+          ] |> String.join "&"
      in
-     String.join "&" elements
+     url ++ "&" ++ headers
 
+
+-- AWS HELPERS
 
 configure : Region -> ServiceConfig
 configure region =
@@ -98,18 +94,6 @@ service config =
 
 
 -- DATE & TIME HELPERS
-
-incrementPosixHelper : Int -> Time.Posix -> String
-incrementPosixHelper deltaSeconds time =
-    Time.posixToMillis time + deltaSeconds*1000
-      |> (\x -> x // 1000)
-      |> String.fromInt
-
-
-incrementPosix : Int -> Time.Posix -> Time.Posix
-incrementPosix deltaSeconds time =
-    Time.posixToMillis time + deltaSeconds*1000
-      |> Time.millisToPosix
 
 timeString : Time.Posix -> String
 timeString time =
