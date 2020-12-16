@@ -6,3 +6,5 @@ elm-stuff
 node_modules
 *.log
 .idea/
+src/S3Test.elm
+
