@@ -1,4 +1,4 @@
-module AWS.Internal.V4 exposing (sign)
+module AWS.Internal.V4 exposing (sign, signature)
 
 {-| V4 request signing implementation.
 
@@ -22,6 +22,7 @@ import Task exposing (Task)
 import Time exposing (Posix)
 import Word.Bytes as Bytes
 import Word.Hex as Hex
+
 
 
 {-| Prepares a request and signs it with the V4 signing scheme.

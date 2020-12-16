@@ -24,7 +24,7 @@ To build an AWS service configuration directly:
 
 The same thing with the convenience functions would look like:
 
-    AWS.Service.defineRegional
+    AWS.Config.defineRegional
         "lambda"
         "2015-03-31"
         AWS.Config.REST_JSON
