@@ -18,8 +18,6 @@ Outine of the process;
 We will have to work to implement AWS.Http.presignedRequest
 -}
 
-
-
 type alias RequestData = {
         region : String
       , bucket : String
@@ -49,8 +47,31 @@ presignedUrl data =
      in
      String.join "&" elements
 
+
+configure : Region -> ServiceConfig
+configure region =
+      AWS.Config.defineRegional
+        "s3"
+        "2015-03-31"
+        AWS.Config.REST_JSON
+        AWS.Config.SignV4
+        region
+
+service : ServiceConfig -> Service
+service config =
+    AWS.Service.service config
+
+
+-- DATE & TIME HELPERS
+
+timeString : Time.Posix -> String
+timeString time =
+    dateString time ++ stringFromInt (Time.toHour Time.utc time) ++ stringFromInt (Time.toMinute Time.utc time) ++ stringFromInt (Time.toSecond Time.utc time)
+
+
 dateString : Time.Posix -> String
 dateString time = String.fromInt (Time.toYear Time.utc time) ++ toMonthString Time.utc time ++ (String.padLeft 2 '0' <| String.fromInt <| Time.toDay Time.utc time)
+
 
 toMonthString : Time.Zone -> Time.Posix -> String
 toMonthString zone time =
@@ -73,19 +94,3 @@ strinFromInt : Int -> String
 stringFromInt k =
     k |> String.fromInt |> String.padLeft 2 '0'
 
-timeString : Time.Posix -> String
-timeString time =
-    dateString time ++ stringFromInt (Time.toHour Time.utc time) ++ stringFromInt (Time.toMinute Time.utc time) ++ stringFromInt (Time.toSecond Time.utc time)
-
-configure : Region -> ServiceConfig
-configure region =
-      AWS.Config.defineRegional
-        "s3"
-        "2015-03-31"
-        AWS.Config.REST_JSON
-        AWS.Config.SignV4
-        region
-
-service : ServiceConfig -> Service
-service config =
-    AWS.Service.service config
